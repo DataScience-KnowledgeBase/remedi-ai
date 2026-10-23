@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+node_modules/
+dist/
+frontend/*.tsbuildinfo
+data/
+!data/.gitkeep
+reports/*.json
+!reports/baseline.json
+playwright-report/
+test-results/

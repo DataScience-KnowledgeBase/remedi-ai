@@ -1,0 +1,73 @@
+name: remedi-ai
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/remedi.db
+    volumes:
+      - incident-data:/data
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2"
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      retries: 3
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: [gpu]
+    volumes: [ollama-models:/root/.ollama]
+    networks: [control]
+    restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    deploy:
+      resources:
+        limits:
+          memory: 10G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+volumes:
+  incident-data:
+  ollama-models:
+networks:
+  control:
+    driver: bridge
